@@ -1,7 +1,7 @@
 // frontend/app/layout.tsx
 import "./globals.css";
 import { ReactNode } from "react";
-import { NavBar }   from "../components/NavBar";
+import { NavBar } from "../components/NavBar";
 import { Providers } from "./providers";
 
 export const metadata = {

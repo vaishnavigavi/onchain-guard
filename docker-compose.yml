@@ -4,6 +4,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.etl
+    env_file:
+      - .env
     volumes:
       - ./data:/app/data
       - ./model:/app/model
