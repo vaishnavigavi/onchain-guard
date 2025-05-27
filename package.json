@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "@rainbow-me/rainbowkit": "^2.2.5",
+    "ethers": "^6.14.1",
+    "file-saver": "^2.0.5",
+    "wagmi": "^2.15.3"
+  }
+}

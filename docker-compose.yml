@@ -1,0 +1,47 @@
+
+services:
+  etl:
+    build:
+      context: .
+      dockerfile: Dockerfile.etl
+    volumes:
+      - ./data:/app/data
+      - ./model:/app/model
+    command: |
+      python scripts/fetch_blocks.py && \
+      python scripts/extract_token_transfers.py && \
+      python scripts/engineer_features.py && \
+      python scripts/train_anomaly_model.py
+    networks:
+      - onchain-net
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./model:/app/model
+    networks:
+      - onchain-net
+    depends_on:
+      - etl
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_BASE_URL=http://api:8000
+    networks:
+      - onchain-net
+    depends_on:
+      - api
+
+networks:
+  onchain-net:
+    driver: bridge

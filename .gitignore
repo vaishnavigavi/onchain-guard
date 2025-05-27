@@ -6,3 +6,4 @@ data/
 
 # Environment variables
 .env
+node_modules

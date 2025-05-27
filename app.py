@@ -5,15 +5,22 @@ import joblib
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from fastapi.middleware.cors import CORSMiddleware
 
-load_dotenv()  # if you later need env vars
-
+load_dotenv()
 app = FastAPI(
     title="On-Chain Guard Anomaly API",
-    description="Serve wallet‐level anomaly scores from IsolationForest",
+    description="Serve wallet‐level anomaly scores and transfers",
 )
-
-# Load persisted assets once at startup
+# CORS for dev
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+# Load data
 MODEL = joblib.load("model/isolation_forest.pkl")
 FEATURES = pd.read_parquet("data/wallet_features.parquet")
 ANOMALIES = pd.read_parquet("data/wallet_anomalies.parquet")
@@ -46,10 +53,11 @@ def get_anomaly(wallet: str):
     row = ANOMALIES[ANOMALIES.wallet.str.lower() == wallet.lower()]
     if row.empty:
         raise HTTPException(status_code=404, detail="Wallet not found")
-    row = row.iloc[0]
+    r = row.iloc[0]
     return AnomalyResponse(
-        wallet=row.wallet,
-        anomaly_score=float(row.anomaly_score),
-        net_token_flow=float(row.net_token_flow),
-        send_recv_ratio=float(row.send_recv_ratio),
+        wallet=r.wallet,
+        anomaly_score=float(r.anomaly_score),
+        net_token_flow=float(r.net_token_flow),
+        send_recv_ratio=float(r.send_recv_ratio),
     )
+

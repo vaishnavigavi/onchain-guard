@@ -1,0 +1,4 @@
+fastapi
+uvicorn[standard]
+pydantic
+# any DB library you need, e.g. asyncpg, sqlalchemy, etc.
