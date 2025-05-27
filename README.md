@@ -1,138 +1,81 @@
-# On-Chain Guard
+On-Chain Guard
 
-**On-Chain Guard** is an end-to-end Web3 × ML anomaly detection platform designed to ingest, process, and analyze on-chain transaction data to surface suspicious wallet behavior. This proof-of-concept demonstrates a production-grade pipeline from data collection through model inference and interactive visualization.
-
----
-
-## 🚀 Project Highlights
-
-* **Real-Time On-Chain ETL**: Fetches full transaction data and token transfer logs from Polygon using Web3.py and Alchemy RPC.
-* **Feature Engineering**: Computes per-wallet metrics (token flows, send/receive ratios) at scale, stored in Parquet for fast analytics.
-* **Anomaly Detection**: Trains an IsolationForest model on wallet features, identifies top suspicious addresses, and serializes model with joblib.
-* **Robust API**: FastAPI service exposing endpoints for global anomalies (`/anomalies`), wallet-specific scores (`/anomaly/{wallet}`) and health-checks, with CORS configured for front-end consumption.
-* **Interactive Dashboard**: Next.js + SWR + Tailwind CSS front-end that dynamically displays anomaly rankings, wallet detail cards, and supports drill-down exploration.
-* **Dockerized & CI/CD Ready**: Can be containerized via Docker and orchestrated with Docker Compose; ideal for GitHub Actions automation, and cloud deployment (e.g., Cloud Run, Vercel).
+Hey there! I’m Vaishnavi, and this is On-Chain Guard—a full-stack project that combines Web3 and machine learning to flag suspicious Ethereum wallets and visualize their activity over time.
 
 ---
 
-## 📐 Architecture
+🚀 What it Is
 
-```text
-+----------------------+     +----------------------+     +------------------+
-| On-Chain ETL (Py)    | --> | Feature Store (Parquet)| --> | Anomaly Model     |
-| - Web3.py, Alchemy   |     | - wallet_features.parquet| | - IsolationForest|
-+----------------------+     +----------------------+     +------------------+
-         |                                  |                      |
-         v                                  v                      v
-+----------------------+     +----------------------+     +------------------+
-| Token Transfers Data |     | Anomaly Scores      | --> | FastAPI Service  |
-| - data/token_transfers.parquet |  | - data/wallet_anomalies.parquet | | - /anomalies,    |
-+----------------------+     +----------------------+     |   /anomaly/{addr}|
-                                                      +------------------+
-                                                                |
-                                                                v
-                                                     +------------------------+
-                                                     | Next.js Dashboard      |
-                                                     | - SWR, Tailwind, Drill-|
-                                                     |   down pages           |
-                                                     +------------------------+
-```
+I built this because I wanted a simple way to spot “weird” wallets on Ethereum (or Polygon, etc.) without diving into raw logs. Under the hood:
+
+• FastAPI serves up wallet anomaly scores and transfer history.
+• Isolation Forest (from scikit-learn) is our anomaly detector—trained on historical wallet features.
+• Next.js frontend (with SWR + Recharts) gives you:
+– A dashboard of the top-N suspicious wallets
+– Click-through to a wallet’s detail page
+– A time-series chart of its anomaly score evolution
+• ETL scripts pull on-chain data, compute features, train the model, and backfill history
 
 ---
 
-## 📦 Tech Stack
+🛠️ How to Run Locally
 
-* **Data & ML**: Python 3.9, Web3.py, pandas, scikit-learn, joblib
-* **API**: FastAPI, Uvicorn, Pydantic, CORS middleware
-* **Frontend**: Next.js (React), SWR, Tailwind CSS
-* **Data Storage**: Parquet files (local), easily extended to S3/MinIO
-* **Containerization**: Docker, Docker Compose
-* **CI/CD**: GitHub Actions (scripts to rebuild ETL, retrain model, redeploy)
+1. Clone & Configure
+   git clone [https://github.com/vaishnavigavi/onchain-guard.git](https://github.com/vaishnavigavi/onchain-guard.git)
+   cd onchain-guard
+   Copy .env.example to .env and fill in your keys:
+   ALCHEMY\_API\_URL=your-polygon-or-eth-rpc
+   NEXTAUTH\_URL=[http://localhost:3000](http://localhost:3000)
+   NEXT\_PUBLIC\_API\_BASE\_URL=[http://localhost:8000](http://localhost:8000)
 
----
+2. ETL & Model
+   This pipeline:
+   – Fetches recent on-chain transfers
+   – Computes per-wallet features (volume, flow ratios, etc.)
+   – Trains an IsolationForest
+   – Dumps wallet\_features.parquet, wallet\_anomalies.parquet, and model/isolation\_forest.pkl
+   To run it:
+   docker-compose up etl
 
-## ⚙️ Local Setup
+3. API Backend
+   docker-compose up api
+   Health check:  GET [http://localhost:8000/health](http://localhost:8000/health)
+   List top anomalies:  GET [http://localhost:8000/anomalies?top\_n=50](http://localhost:8000/anomalies?top_n=50)
+   Single wallet:       GET [http://localhost:8000/anomaly/{wallet}](http://localhost:8000/anomaly/{wallet})
+   History:             GET [http://localhost:8000/anomaly-history/{wallet}](http://localhost:8000/anomaly-history/{wallet})
 
-### Prerequisites
-
-* Python 3.9+ and pip
-* Node.js 18+ and npm
-* Docker & Docker Compose (optional but recommended)
-* Alchemy (or equivalent) RPC key for Polygon
-
-### 1. Clone & Dependencies
-
-```bash
-git clone https://github.com/vaishnavigavi/onchain-guard.git
-cd onchain-guard
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cd frontend
-npm install
-```
-
-### 2. Configure Environment
-
-Create a `.env` in the root:
-
-```env
-ALCHEMY_API_URL=https://polygon-mumbai.g.alchemy.com/v2/<<YOUR_KEY>>
-```
-
-### 3. Run ETL & Model Training
-
-```bash
-# Backfill recent blocks → token_transfers.parquet
-python scripts/fetch_blocks.py
-python scripts/extract_token_transfers.py
-python scripts/engineer_features.py
-python scripts/train_anomaly_model.py
-```
-
-### 4. Launch Services
-
-```bash
-# Terminal 1: API
-uvicorn app:app --reload --port 8000
-
-# Terminal 2 (root): Next.js Frontend
-cd frontend
-npm run dev -- -p 3001
-```
-
-Open [http://localhost:3001/anomalies](http://localhost:3001/anomalies) to browse.
+4. Frontend
+   docker-compose up frontend
+   Browse to [http://localhost:3000](http://localhost:3000) to see:
+   – Dashboard of top suspicious wallets
+   – Wallet pages with detail, anomaly-over-time chart, and recent transfers
 
 ---
 
-## 🐳 Dockerized Deployment
+🔍 What’s Inside
 
-```bash
-# Build all services
-docker-compose build
-# Bring up ETL, API, Frontend
-docker-compose up
-```
-
----
-
-## 🌐 Cloud Deployment
-
-1. Push containers to your registry (Docker Hub, GCR, ECR).
-2. Use GitHub Actions to redeploy to Cloud Run (API) and Vercel (Next.js).
-3. Set up managed storage (e.g., GCS/S3) for Parquet and model artifacts.
+• scripts/   ETL and model-training code
+• data/      Parquet files for wallet features and anomaly scores
+• model/     Trained IsolationForest .pkl
+• app.py     FastAPI app serving anomalies and history
+• frontend/  Next.js app with App Router, SWR, and Recharts
+• docker-compose.yml   Orchestrates ETL, API, and frontend
 
 ---
 
-## 🛠 Future Improvements
+⚙️ Extending & Deploying
 
-* Swap IsolationForest for a Graph Neural Network (PyTorch Geometric)
-* Real-time streaming with Kafka / WebSockets
-* Feature store (Redis / Postgres) for sub-second lookups
-* Wallet authentication & user-specific alerts via WalletConnect
-* Add historical trend graphs and downloadable reports
+1. Add new features by updating the ETL scripts
+2. Retrain by rerunning docker-compose up etl
+3. Deploy by pointing your Docker setup at your cloud provider and setting env vars
+4. Auth is stubbed for wallet-signature login—feel free to hook up NextAuth or OAuth
 
 ---
 
+🤝 Feedback & Contributions
 
-*This README frames **On-Chain Guard** as an end-to-end, production-ready Web3 × ML service—perfect for showcasing on your resume or portfolio.*
+This is a one-person project and I’m always eager to hear what you think. Open an issue or message me on GitHub if you run into anything.
+
+Enjoy poking around on-chain data without drowning in raw JSON!
+
+— Vaishnavi
